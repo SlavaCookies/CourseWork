@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hill Climb Racing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+            font-family: 'Arial Black', sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 50%, #90EE90 50%, #228B22 100%);
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 18px;
+            pointer-events: none;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            display: none;
+        }
+        
+        #gameOver h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #FFD700;
+        }
+        
+        #gameOver button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #FF6B35;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Arial Black', sans-serif;
+            transition: transform 0.2s;
+        }
+        
+        #gameOver button:hover {
+            transform: scale(1.1);
+        }
+        
+        .stat {
+            margin: 5px 0;
+            font-size: 20px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .fuel-bar {
+            width: 200px;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+            border: 2px solid white;
+        }
+        
+        .fuel-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF4444, #FFFF00, #44FF44);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+        <div id="ui">
+            <div class="stat">🏆 Расстояние: <span id="distance">0</span> м</div>
+            <div class="stat">💰 Монеты: <span id="coins">0</span></div>
+            <div class="stat">⛽ Топливо:</div>
+            <div class="fuel-bar">
+                <div class="fuel-fill" id="fuelBar" style="width: 100%"></div>
+            </div>
+        </div>
+        <div id="controls">
+            ↑ газ | ↓ тормоз | ← наклон назад | → наклон вперед
+        </div>
+        <div id="gameOver">
+            <h2>ИГРА ОКОНЧЕНА!</h2>
+            <div class="stat">Пройдено: <span id="finalDistance">0</span> м</div>
+            <div class="stat">Собрано монет: <span id="finalCoins">0</span></div>
+            <br>
+            <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Игровые переменные
+        let gameRunning = true;
+        let camera = { x: 0, y: 0 };
+        let distance = 0;
+        let coins = 0;
+        let fuel = 100;
+        
+        // Физика
+        const GRAVITY = 0.5;
+        const FRICTION = 0.98;
+        
+        // Машина
+        const car = {
+            x: 200,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            angle: 0,
+            angularVelocity: 0,
+            width: 80,
+            height: 40,
+            wheelRadius: 18,
+            wheelAngle: 0,
+            onGround: false,
+            enginePower: 0.3,
+            brakePower: 0.2
+        };
+        
+        // Управление
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+        
+        // Ландшафт
+        let terrain = [];
+        const terrainPoints = [];
+        const terrainWidth = 50;
+        let maxTerrainX = 0;
+        
+        // Монеты
+        const coinList = [];
+        
+        // Частицы
+        const particles = [];
+        
+        // Инициализация ландшафта
+        function initTerrain() {
+            terrain = [];
+            let y = 400;
+            for (let x = 0; x < 3000; x += terrainWidth) {
+                y += (Math.random() - 0.5) * 30;
+                y = Math.max(200, Math.min(500, y));
+                terrain.push({ x, y });
+            }
+            maxTerrainX = terrain[terrain.length - 1].x;
+        }
+        
+        // Генерация нового ландшафта
+        function extendTerrain() {
+            let lastY = terrain[terrain.length - 1].y;
+            for (let i = 0; i < 20; i++) {
+                maxTerrainX += terrainWidth;
+                lastY += (Math.random() - 0.5) * 40;
+                lastY = Math.max(150, Math.min(550, lastY));
+                terrain.push({ x: maxTerrainX, y: lastY });
+                
+                // Добавляем монеты
+                if (Math.random() < 0.3) {
+                    coinList.push({
+                        x: maxTerrainX,
+                        y: lastY - 80 - Math.random() * 100,
+                        collected: false,
+                        radius: 15
+                    });
+                }
+            }
+        }
+        
+        // Получение высоты ландшафта
+        function getTerrainHeight(x) {
+            for (let i = 0; i < terrain.length - 1; i++) {
+                if (x >= terrain[i].x && x <= terrain[i + 1].x) {
+                    const t = (x - terrain[i].x) / (terrain[i + 1].x - terrain[i].x);
+                    return terrain[i].y * (1 - t) + terrain[i + 1].y * t;
+                }
+            }
+            return 500;
+        }
+        
+        // Получение угла ландшафта
+        function getTerrainAngle(x) {
+            const delta = 5;
+            const y1 = getTerrainHeight(x - delta);
+            const y2 = getTerrainHeight(x + delta);
+            return Math.atan2(y2 - y1, delta * 2);
+        }
+        
+        // Создание частиц
+        function createParticles(x, y, count, color) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 1,
+                    color
+                });
+            }
+        }
+        
+        // Обновление физики
+        function updatePhysics() {
+            if (!gameRunning) return;
+            
+            // Расход топлива
+            if (keys.up && fuel > 0) {
+                fuel -= 0.1;
+                createParticles(
+                    car.x - Math.cos(car.angle) * 40,
+                    car.y + Math.sin(car.angle) * 20,
+                    2, '#FF6600'
+                );
+            }
+            
+            if (fuel <= 0) {
+                fuel = 0;
+                keys.up = false;
+            }
+            
+            // Управление
+            if (keys.up && fuel > 0) {
+                car.vx += Math.cos(car.angle) * car.enginePower;
+                car.vy -= Math.sin(car.angle) * car.enginePower;
+                car.wheelAngle += 0.3;
+            }
+            
+            if (keys.down) {
+                car.vx -= Math.cos(car.angle) * car.brakePower * 0.5;
+                car.vy += Math.sin(car.angle) * car.brakePower * 0.5;
+            }
+            
+            if (keys.left) {
+                car.angularVelocity -= 0.02;
+            }
+            if (keys.right) {
+                car.angularVelocity += 0.02;
+            }
+            
+            // Гравитация
+            car.vy += GRAVITY;
+            
+            // Трение
+            car.vx *= FRICTION;
+            car.vy *= FRICTION;
+            car.angularVelocity *= 0.95;
+            
+            // Обновление позиции
+            car.x += car.vx;
+            car.y += car.vy;
+            car.angle += car.angularVelocity;
+            
+            // Коллизия с землей
+            const groundY = getTerrainHeight(car.x);
+            const wheelOffset = Math.cos(car.angle) * 30;
+            const backWheelX = car.x - wheelOffset;
+            const frontWheelX = car.x + wheelOffset;
+            const backWheelY = getTerrainHeight(backWheelX);
+            const frontWheelY = getTerrainHeight(frontWheelX);
+            
+            const avgGroundY = (backWheelY + frontWheelY) / 2;
+            const groundAngle = Math.atan2(frontWheelY - backWheelY, frontWheelX - backWheelX);
+            
+            if (car.y + car.wheelRadius > avgGroundY) {
+                car.y = avgGroundY - car.wheelRadius;
+                car.vy *= -0.3;
+                car.vx *= 0.9;
+                
+                // Выровнять машину по земле
+                const targetAngle = -groundAngle;
+                car.angle += (targetAngle - car.angle) * 0.1;
+                
+                if (!car.onGround && Math.abs(car.vy) > 3) {
+                    createParticles(car.x, car.y + car.wheelRadius, 5, '#8B4513');
+                }
+                car.onGround = true;
+            } else {
+                car.onGround = false;
+            }
+            
+            // Сбор монет
+            coinList.forEach(coin => {
+                if (!coin.collected) {
+                    const dx = car.x - coin.x;
+                    const dy = car.y - coin.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 40) {
+                        coin.collected = true;
+                        coins++;
+                        createParticles(coin.x, coin.y, 10, '#FFD700');
+                    }
+                }
+            });
+            
+            // Обновление частиц
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            
+            // Камера следует за машиной
+            camera.x = car.x - 200;
+            
+            // Расширение мира
+            if (car.x > maxTerrainX - 1000) {
+                extendTerrain();
+            }
+            
+            // Обновление расстояния
+            distance = Math.max(distance, Math.floor(car.x / 10));
+            
+            // Проверка смерти
+            if (car.y > 800 || (Math.abs(car.angle) > Math.PI && car.onGround)) {
+                gameOver();
+            }
+            
+            // Обновление UI
+            document.getElementById('distance').textContent = distance;
+            document.getElementById('coins').textContent = coins;
+            document.getElementById('fuelBar').style.width = fuel + '%';
+        }
+        
+        // Отрисовка
+        function draw() {
+            // Очистка
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Градиент неба
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.5, '#E0F6FF');
+            gradient.addColorStop(0.5, '#90EE90');
+            gradient.addColorStop(1, '#228B22');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y + 300);
+            
+            // Рисуем горы на заднем плане
+            ctx.fillStyle = '#4682B4';
+            ctx.beginPath();
+            ctx.moveTo(camera.x, 300);
+            for (let x = Math.floor(camera.x / 100) * 100; x < camera.x + canvas.width + 100; x += 100) {
+                const mountainHeight = Math.sin(x * 0.01) * 50 + Math.sin(x * 0.003) * 100;
+                ctx.lineTo(x, 300 - mountainHeight);
+            }
+            ctx.lineTo(camera.x + canvas.width + 100, 600);
+            ctx.lineTo(camera.x, 600);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Рисуем ландшафт
+            ctx.fillStyle = '#8B4513';
+            ctx.strokeStyle = '#228B22';
+            ctx.lineWidth = 5;
+            
+            ctx.beginPath();
+            ctx.moveTo(terrain[0].x, 600);
+            for (let point of terrain) {
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.lineTo(terrain[terrain.length - 1].x, 600);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Рисуем траву
+            ctx.strokeStyle = '#32CD32';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let point of terrain) {
+                if (point.x > camera.x - 50 && point.x < camera.x + canvas.width + 50) {
+                    ctx.moveTo(point.x, point.y);
+                    ctx.lineTo(point.x + 5, point.y - 10);
+                    ctx.moveTo(point.x + 10, point.y);
+                    ctx.lineTo(point.x + 15, point.y - 8);
+                }
+            }
+            ctx.stroke();
+            
+            // Рисуем монеты
+            coinList.forEach(coin => {
+                if (!coin.collected && coin.x > camera.x - 50 && coin.x < camera.x + canvas.width + 50) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.strokeStyle = '#FFA500';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(coin.x, coin.y + Math.sin(Date.now() * 0.005) * 5, coin.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Блик на монете
+                    ctx.fillStyle = '#FFFFAA';
+                    ctx.beginPath();
+                    ctx.arc(coin.x - 5, coin.y + Math.sin(Date.now() * 0.005) * 5 - 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Знак доллара
+                    ctx.fillStyle = '#B8860B';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('$', coin.x, coin.y + Math.sin(Date.now() * 0.005) * 5 + 5);
+                }
+            });
+            
+            // Рисуем машину
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(-car.angle);
+            
+            // Кузов
+            ctx.fillStyle = '#FF4444';
+            ctx.strokeStyle = '#CC0000';
+            ctx.lineWidth = 3;
+            ctx.fillRect(-40, -30, 80, 40);
+            ctx.strokeRect(-40, -30, 80, 40);
+            
+            // Кабина
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(-20, -50, 40, 25);
+            ctx.strokeRect(-20, -50, 40, 25);
+            
+            // Детали кузова
+            ctx.fillStyle = '#FF6666';
+            ctx.fillRect(-35, -25, 20, 15);
+            ctx.fillRect(15, -25, 20, 15);
+            
+            // Колеса
+            ctx.fillStyle = '#333';
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 2;
+            
+            [-30, 30].forEach(offset => {
+                ctx.save();
+                ctx.translate(offset, 10);
+                ctx.rotate(car.wheelAngle);
+                
+                // Шина
+                ctx.beginPath();
+                ctx.arc(0, 0, car.wheelRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Спицы
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(
+                        Math.cos(i * Math.PI / 2) * car.wheelRadius * 0.8,
+                        Math.sin(i * Math.PI / 2) * car.wheelRadius * 0.8
+                    );
+                    ctx.stroke();
+                }
+                ctx.restore();
+            });
+            
+            // Фары
+            ctx.fillStyle = keys.up ? '#FFFFAA' : '#FFFFEE';
+            ctx.beginPath();
+            ctx.arc(38, -15, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // Частицы
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            
+            ctx.restore();
+        }
+        
+        // Игровой цикл
+        function gameLoop() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Конец игры
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalDistance').textContent = distance;
+            document.getElementById('finalCoins').textContent = coins;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        // Рестарт
+        function restartGame() {
+            gameRunning = true;
+            car.x = 200;
+            car.y = 300;
+            car.vx = 0;
+            car.vy = 0;
+            car.angle = 0;
+            car.angularVelocity = 0;
+            distance = 0;
+            coins = 0;
+            fuel = 100;
+            camera.x = 0;
+            coinList.length = 0;
+            particles.length = 0;
+            document.getElementById('gameOver').style.display = 'none';
+            initTerrain();
+        }
+        
+        // Управление
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': keys.up = true; break;
+                case 'ArrowDown': keys.down = true; break;
+                case 'ArrowLeft': keys.left = true; break;
+                case 'ArrowRight': keys.right = true; break;
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': keys.up = false; break;
+                case 'ArrowDown': keys.down = false; break;
+                case 'ArrowLeft': keys.left = false; break;
+                case 'ArrowRight': keys.right = false; break;
+            }
+        });
+        
+        // Запуск
+        initTerrain();
+        gameLoop();
+    </script>
+</body>
+</html>

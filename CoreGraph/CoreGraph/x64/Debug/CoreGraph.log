@@ -1,0 +1,27 @@
+﻿  pch.cpp
+  CoreGraph.cpp
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(36,14): warning C4267: инициализация: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(59,23): warning C4267: инициализация: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(107,14): warning C4267: инициализация: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(207,35): warning C4267: =: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(337,35): warning C4838: Преобразование из "size_t" в "int" требует сужающего преобразования.
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(337,35): warning C4267: инициализация: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+C:\Users\User\Documents\_OpenCV\CoreGraph\CoreGraph\CoreGraph.cpp(396,35): warning C4267: =: преобразование из "size_t" в "int"; возможна потеря данных
+  (компиляция исходного файла "/CoreGraph.cpp")
+  
+  dllmain.cpp
+  Создание кода...
+     Создается библиотека C:\Users\User\Documents\_OpenCV\CoreGraph\x64\Debug\CoreGraph.lib и объект C:\Users\User\Documents\_OpenCV\CoreGraph\x64\Debug\CoreGraph.exp
+  CoreGraph.vcxproj -> C:\Users\User\Documents\_OpenCV\CoreGraph\x64\Debug\CoreGraph.dll

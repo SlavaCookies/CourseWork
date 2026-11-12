@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <key id="v_label" attr.name="label" attr.type="string" for="node"/>
+  <key id="pos" attr.name="position" attr.type="string" for="node"/>
+  <key id="e_directed" attr.name="directed" attr.type="boolean" for="edge"/>
+  <graph id="G" edgedefault="directed">
+    <node id="n0">
+      <data key="v_label">Вершина 1</data>
+      <data key="pos">272,127</data>
+    </node>
+    <node id="n1">
+      <data key="v_label">Вершина 2</data>
+      <data key="pos">461,204</data>
+    </node>
+    <node id="n2">
+      <data key="v_label">Вершина 3</data>
+      <data key="pos">355,317</data>
+    </node>
+    <node id="n3">
+      <data key="v_label">Вершина 4</data>
+      <data key="pos">165,276</data>
+    </node>
+    <node id="n4">
+      <data key="v_label">Вершина 5</data>
+      <data key="pos">107,182</data>
+    </node>
+    <edge id="e0" source="n0" target="n1">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e1" source="n1" target="n2">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e2" source="n2" target="n1">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e3" source="n0" target="n3">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e4" source="n0" target="n4">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e5" source="n2" target="n3">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e6" source="n2" target="n4">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e7" source="n3" target="n4">
+      <data key="e_directed">true</data>
+    </edge>
+    <edge id="e8" source="n4" target="n3">
+      <data key="e_directed">true</data>
+    </edge>
+  </graph>
+</graphml>
